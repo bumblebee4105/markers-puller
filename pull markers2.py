@@ -4,13 +4,13 @@ import re
 import requests
 import urllib.parse
 
-# Utility to sanitize and filter HTML tags
-def filter(text):
-    return text.replace("<p>", "").replace("</p>", "").replace("<br>", "").replace("<ul>", "").replace("</ul>", "")\
-        .replace("<ol>", "").replace("</ol>", "").replace("<li>", "").replace("</li>", "")\
-        .replace("<strong>", "").replace("</strong>", "").replace("<em>", "").replace("</em>", "")\
-        .replace("<u>", "").replace("</u>", "").replace("<s>", "").replace("</s>", "")\
-        .replace("<span>", "").replace("</span>", "")
+# Utility to sanitize HTML tags
+def sanitize(text: str) -> str:
+    elems = ["p", "br", "ul", "ol", "li", "strong", "em", "u", "s", "span", "b", "i"]
+    for elem in elems:
+        text = text.replace(f"<{elem}>","").replace(f"</{elem}>","")
+
+    return text
 
 # Utility to download a file from a URL into the given folder
 def download_file(url, save_dir):
@@ -123,18 +123,16 @@ if specific_key in data:
                         continue
 
             # Safe directory and file naming
-            safe_dirname = re.sub(r'[^\w\-_\. ]', '_', display_label).strip()[:100]
-            entry_dir = os.path.join(output_dir, safe_dirname)
+            entry_dir = os.path.join(output_dir, type_file)
             os.makedirs(entry_dir, exist_ok=True)
 
             # Try using the full display label for the filename first
+            safe_filename = re.sub(r'[^\w\-_\. ]', '_', display_label).strip()[:100]
             md_filename = f"{safe_dirname}.md"
             md_path = os.path.join(entry_dir, md_filename)
 
             # Get the absolute path to check its total length
             abs_md_path = os.path.abspath(md_path)
-
-            
 
             # Download files if applicable
             if type_file == "file":
