@@ -4,13 +4,13 @@ import re
 import requests
 import urllib.parse
 
-# Utility to sanitize and filter HTML tags
-def filter(text):
-    return text.replace("<p>", "").replace("</p>", "").replace("<br>", "").replace("<ul>", "").replace("</ul>", "")\
-        .replace("<ol>", "").replace("</ol>", "").replace("<li>", "").replace("</li>", "")\
-        .replace("<strong>", "").replace("</strong>", "").replace("<em>", "").replace("</em>", "")\
-        .replace("<u>", "").replace("</u>", "").replace("<s>", "").replace("</s>", "")\
-        .replace("<span>", "").replace("</span>", "")
+# Utility to sanitize HTML tags
+def sanitize(text: str) -> str:
+    elems = ["p", "br", "ul", "ol", "li", "strong", "em", "u", "s", "span", "b", "i"]
+    for elem in elems:
+        text = text.replace(f"<{elem}>","").replace(f"</{elem}>","")
+
+    return text
 
 # Utility to download a file from a URL into the given folder
 def download_file(url, save_dir):
@@ -90,10 +90,11 @@ if specific_key in data:
             type_file = {
                 10074: "evaluation",
                 10076: "reflection",
-                10075: "feedback",
+                10075: "feedback", # peer feedback
+                10141: "feedback", # self-registered feedback
                 10077: "checkin",
                 10120: "file"
-            }.get(feedback_moment_id, "something else")
+            }.get(feedback_moment_id, "other")
 
             # Collect related data
             for key in other_keys:
@@ -105,11 +106,11 @@ if specific_key in data:
                             users_send_to_id.add(other_element["user_id"])
                         elif key == "question_responses":
                             if other_element.get("evaluation_id") == element_id:
-                                typed_texts.add(filter(other_element["comment"]))
+                                typed_texts.add(sanitize(other_element["comment"]))
                             if other_element.get("feedback_provider_id") in users_send_to_id and \
                                other_element.get("evaluation_id") == element_id:
                                 uid = other_element["feedback_provider_id"]
-                                responses.setdefault(uid, []).append(filter(other_element["comment"]))
+                                responses.setdefault(uid, []).append(sanitize(other_element["comment"]))
                         elif key == "handins" and other_element.get("evaluation_id") == element_id:
                             for k in ["file_download_url", "external_url"]:
                                 url = other_element.get(k)
@@ -123,18 +124,16 @@ if specific_key in data:
                         continue
 
             # Safe directory and file naming
-            safe_dirname = re.sub(r'[^\w\-_\. ]', '_', display_label).strip()[:100]
-            entry_dir = os.path.join(output_dir, safe_dirname)
+            entry_dir = os.path.join(output_dir, type_file)
             os.makedirs(entry_dir, exist_ok=True)
 
             # Try using the full display label for the filename first
-            md_filename = f"{safe_dirname}.md"
+            safe_filename = re.sub(r'[^\w\-_\. ]', '_', display_label).strip()[:100]
+            md_filename = f"{safe_filename}.md"
             md_path = os.path.join(entry_dir, md_filename)
 
             # Get the absolute path to check its total length
             abs_md_path = os.path.abspath(md_path)
-
-            
 
             # Download files if applicable
             if type_file == "file":
@@ -154,11 +153,11 @@ if specific_key in data:
             if message:
                 markdown_lines.append(f"\n**Message:** {message}\n")
             if file_urls:
-                markdown_lines.append(f"\n**Download URLs:**")
+                markdown_lines.append("\n**Download URLs:**")
                 for url in file_urls:
                     markdown_lines.append(f"- {url}")
             if typed_texts:
-                markdown_lines.append(f"\n**Typed Texts:**")
+                markdown_lines.append("\n**Typed Texts:**")
                 for txt in typed_texts:
                     markdown_lines.append(f"\n```html\n{txt}\n```\n")
             if users_send_to:
